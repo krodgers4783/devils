@@ -90,6 +90,39 @@ button:focus-visible, a:focus-visible { outline: 2px solid #fff; outline-offset:
 .note { font-size: 13px; color: var(--muted); margin-top: 6px; }
 .err { color: #ffd2cc; font-size: 15px; }
 .err strong { color: #fff; display: block; margin-bottom: 4px; }
+.inj-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.inj-row:first-child { border-top: 0; padding-top: 0; }
+.inj-name { font-weight: 600; min-width: 0; }
+.inj-name small { color: var(--muted); font-weight: 500; margin-left: 6px; font-size: 12px; letter-spacing: .06em; }
+.inj-what { color: var(--muted); font-size: 14px; }
+.inj-back { grid-column: 2; grid-row: 2; text-align: right; font-size: 14px; white-space: nowrap; }
+.tag { grid-column: 2; grid-row: 1; justify-self: end; font: 800 12px var(--display); letter-spacing: .1em; text-transform: uppercase; padding: 2px 8px; border-radius: 6px; }
+.tag.out { background: var(--orange); color: #fff; }
+.tag.ir { background: #0b0b0c; color: #fff; border: 1px solid rgba(255,255,255,.4); }
+.tag.dtd { background: #fff; color: #8e0a1b; }
+.leaders { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.leader { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; min-width: 0; }
+.leader img, .leader .ini { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: rgba(255,255,255,.1); }
+.leader .ini { display: grid; place-items: center; font: 800 20px var(--display); }
+.leader .val { font: 800 34px/1 var(--display); color: #fff; font-variant-numeric: tabular-nums; }
+.leader .cat { font: 700 11px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.leader .who { font-size: 13px; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.box-head { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.box-head .label { margin-bottom: 0; }
+.seg { display: inline-flex; border: 1px solid rgba(206,17,38,.8); border-radius: 999px; padding: 2px; }
+.seg button { background: none !important; color: var(--muted) !important; border: 0; border-radius: 999px; padding: 5px 11px; font: 700 12px var(--body); }
+.seg button[aria-selected="true"] { background: var(--orange) !important; color: #fff !important; }
+.subhead { font: 700 12px var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; }
+.box-wrap { overflow-x: auto; margin: 0 -4px; }
+.box { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; }
+.box th { font: 700 11px var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); text-align: right; padding: 0 4px 6px; white-space: nowrap; }
+.box td { padding: 7px 4px; text-align: right; border-top: 1px solid var(--line); white-space: nowrap; }
+.box th:first-child, .box td:first-child { text-align: left; position: sticky; left: 0; z-index: 1; background: #2a070d; padding-left: 4px; box-shadow: 6px 0 6px -6px rgba(0,0,0,.6); }
+.box td:first-child { white-space: normal; min-width: 6.5em; }
+.box td:first-child small { color: var(--muted); font-size: 11px; margin-left: 4px; }
+.box td.hot { font-weight: 800; color: #fff; }
+.box td.pos { color: var(--win); } .box td.neg { color: #ff8a7a; }
+.box-foot { margin-top: 8px; font-size: 12px; color: var(--muted); line-height: 1.4; }
 .stamp { text-align: center; font-size: 12px; color: var(--muted); }
 </style>
 </head>
@@ -113,6 +146,22 @@ button:focus-visible, a:focus-visible { outline: 2px solid #fff; outline-offset:
   <section class="panel">
     <div class="label">Next game</div>
     <div id="nextBody" class="dim">Loading…</div>
+  </section>
+
+  <section class="panel">
+    <div class="label">Injury report</div>
+    <div id="injBody" class="dim">Loading…</div>
+  </section>
+
+  <section class="panel">
+    <div class="label">Season leaders</div>
+    <div id="leadersBody" class="dim">Loading…</div>
+  </section>
+
+  <section class="panel">
+    <div class="box-head"><div class="label" id="boxLabel">Box score</div>
+      <div class="seg" role="tablist"><button type="button" id="segLast" role="tab">Last game</button><button type="button" id="segSeason" role="tab">Season</button></div></div>
+    <div id="boxBody" class="dim">Loading…</div>
   </section>
 
   <div class="stamp" id="stamp"></div>
@@ -147,7 +196,7 @@ function showError(err) {
     : `<strong>Couldn't reach ESPN.</strong>Check your connection and tap Refresh. (${esc(err && err.message || "network error")})`;
   document.getElementById("gameLabel").className = "label";
   document.getElementById("gameLabel").textContent = "Latest game";
-  ["gameBody", "recordBody", "nextBody"].forEach((id, i) => {
+  ["gameBody", "recordBody", "nextBody", "injBody", "leadersBody", "boxBody"].forEach((id, i) => {
     const el = document.getElementById(id);
     el.classList.remove("dim");
     el.innerHTML = i === 0 ? `<div class="err">${msg}</div>` : `<span class="dim">Waiting on the connection above.</span>`;
@@ -314,6 +363,213 @@ function renderNext(ev) {
     </div>${watch}`;
 }
 
+// ---------- Injury report, season leaders, box score (hockey) ----------
+const shortName = a => a?.shortName || a?.displayName || a?.fullName || "";
+const posOf = a => a?.position?.abbreviation || "";
+const isNJBlock = b => b.team?.abbreviation === ABBR || b.team?.slug === "new-jersey-devils";
+
+// Injuries: ESPN's roster lists each player's current injury; the next game's preview lists them too
+function injuriesFromRoster(j) {
+  if (!j) return null;
+  let ath = j.athletes || [];
+  if (ath.length && Array.isArray(ath[0]?.items)) ath = ath.flatMap(g => g.items || []);
+  const out = [];
+  ath.forEach(a => (a.injuries || []).forEach(inj => out.push({ a, inj })));
+  return out;
+}
+function injuriesFromSummary(j) {
+  const block = (j?.injuries || []).find(isNJBlock);
+  return block ? (block.injuries || []).map(inj => ({ a: inj.athlete || {}, inj })) : null;
+}
+function injLine(inj) {
+  const d = inj.details || {};
+  const part = [d.side && d.side !== "Not Specified" ? d.side : "", d.location || d.type || "", d.detail || ""].filter(Boolean).join(" ").trim();
+  return part || inj.shortComment?.split(/[.(]/)[0] || inj.type?.description || "Injury";
+}
+function injReturn(inj) {
+  const r = inj.details?.returnDate;
+  if (r) { const d = new Date(r.length <= 10 ? r + "T12:00:00" : r); if (!isNaN(d)) return "Back ~" + d.toLocaleDateString("en-US", { month: "short", day: "numeric" }); }
+  return "Return date not given";
+}
+function renderInjuries(list) {
+  const body = document.getElementById("injBody");
+  body.classList.remove("dim");
+  if (list == null) { body.innerHTML = `<span class="dim">Injury report isn't available right now. Tap Refresh.</span>`; return; }
+  if (!list.length) { body.innerHTML = `<span class="dim">No injuries listed. Full roster available.</span>`; return; }
+  const kind = st => /reserve|\bIR\b|LTIR/i.test(st) ? "ir" : /out/i.test(st) ? "out" : "dtd";
+  const rank = { ir: 0, out: 1, dtd: 2 };
+  list.sort((x, y) => rank[kind(x.inj.status || "")] - rank[kind(y.inj.status || "")]);
+  body.innerHTML = list.map(({ a, inj }) => {
+    const st = inj.status || inj.type?.description || "Injured";
+    const k = kind(st);
+    const label = k === "ir" ? (/long/i.test(st) || /LTIR/.test(st) ? "LTIR" : "IR") : st;
+    return `<div class="inj-row"><div class="inj-name">${esc(a.displayName || shortName(a))}<small>${esc(posOf(a))}</small></div>
+      <span class="tag ${k}">${esc(label)}</span><div class="inj-what">${esc(injLine(inj))}</div><div class="inj-back">${esc(injReturn(inj))}</div></div>`;
+  }).join("") + `<div class="note">From ESPN. IR is injured reserve (out at least a week); LTIR is long-term (usually 10+ games). Return dates are estimates.</div>`;
+}
+
+// One game's box score -> compact lines for skaters and goalies
+const toMin = v => { const m = String(v ?? "").match(/(\d+):(\d+)/); return m ? +m[1] + +m[2] / 60 : (parseFloat(v) || 0); };
+const fmtTOI = m => { const t = Math.round(m * 60); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); };
+function linesFrom(summary) {
+  const groups = (summary?.boxscore?.players || []).find(isNJBlock)?.statistics || [];
+  if (!groups.length) return null;
+  const skaters = [], goalies = [];
+  groups.forEach(g => {
+    const labels = (g.labels || g.names || []).map(x => String(x).toUpperCase());
+    const at = (...ks) => { for (const k of ks) { const i = labels.indexOf(k); if (i >= 0) return i; } return -1; };
+    const val = (p, ...ks) => { const i = at(...ks); return i >= 0 ? p.stats?.[i] : undefined; };
+    const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+    const isGoalie = /goal/i.test(g.name || g.text || "") || (at("SV") >= 0 && at("SA") >= 0);
+    (g.athletes || []).forEach(p => {
+      if (p.didNotPlay || !(p.stats || []).length) return;
+      const a = p.athlete || {};
+      const base = { id: String(a.id || a.displayName), name: shortName(a), pos: posOf(a) };
+      if (isGoalie) {
+        const toi = toMin(val(p, "TOI"));
+        if (!toi) return;
+        const sa = num(val(p, "SA")), sv = num(val(p, "SV", "SAVES"));
+        const ga = at("GA") >= 0 ? num(val(p, "GA")) : Math.max(0, sa - sv);
+        goalies.push({ ...base, toi, sa, sv, ga });
+      } else {
+        const g_ = num(val(p, "G")), a_ = num(val(p, "A"));
+        skaters.push({ ...base, g: g_, a: a_, pts: at("PTS", "P") >= 0 ? num(val(p, "PTS", "P")) : g_ + a_,
+          pm: at("+/-") >= 0 ? num(val(p, "+/-")) : null, sog: num(val(p, "SOG", "S")), toi: toMin(val(p, "TOI")),
+          pim: num(val(p, "PIM")), hit: num(val(p, "HT", "HITS")), blk: num(val(p, "BS", "BLK")) });
+      }
+    });
+  });
+  return (skaters.length || goalies.length) ? { skaters, goalies } : null;
+}
+
+let boxView = "last", boxLast = null, boxEvent = null, boxSeason = null, leaderSummary = null;
+try { boxView = localStorage.getItem("njd-boxview") || "last"; } catch (e) {}
+const pmCell = v => v == null ? "<td>–</td>" : `<td class="${v > 0 ? "pos" : v < 0 ? "neg" : ""}">${v > 0 ? "+" : ""}${Number.isInteger(v) ? v : v.toFixed(1)}</td>`;
+const svPct = (sv, sa) => sa ? (sv / sa).toFixed(3).replace(/^0/, "") : "–";
+
+function renderBoxCard() {
+  const body = document.getElementById("boxBody");
+  body.classList.remove("dim");
+  const live = state(boxEvent) === "in";
+  document.getElementById("segLast").textContent = live ? "Live" : "Last game";
+  document.getElementById("segLast").setAttribute("aria-selected", boxView === "last");
+  document.getElementById("segSeason").setAttribute("aria-selected", boxView === "season");
+  boxView === "season" ? renderSeason(body) : renderLastGame(body, live);
+}
+
+function renderLastGame(body, live) {
+  const L = linesFrom(boxLast);
+  if (!L) { body.innerHTML = `<span class="dim">Box score not available yet.</span>`; return; }
+  const sk = L.skaters.slice().sort((a, b) => b.pts - a.pts || b.g - a.g || b.toi - a.toi);
+  const opp = (comp(boxEvent).competitors || []).find(c => !isDevils(c))?.team;
+  body.innerHTML = `<div class="box-wrap"><table class="box">
+      <thead><tr><th>Skater</th><th>G</th><th>A</th><th>PTS</th><th>+/-</th><th>SOG</th><th>TOI</th><th>HIT</th><th>BLK</th><th>PIM</th></tr></thead>
+      <tbody>${sk.map(p => `<tr><td>${esc(p.name)}<small>${esc(p.pos)}</small></td><td>${p.g}</td><td>${p.a}</td><td class="${p.pts ? "hot" : ""}">${p.pts}</td>${pmCell(p.pm)}<td>${p.sog}</td><td>${fmtTOI(p.toi)}</td><td>${p.hit}</td><td>${p.blk}</td><td>${p.pim}</td></tr>`).join("")}</tbody>
+    </table></div>
+    ${L.goalies.length ? `<div class="subhead">Goalies</div><div class="box-wrap"><table class="box">
+      <thead><tr><th>Goalie</th><th>SA</th><th>SV</th><th>GA</th><th>SV%</th><th>TOI</th></tr></thead>
+      <tbody>${L.goalies.map(p => `<tr><td>${esc(p.name)}</td><td>${p.sa}</td><td>${p.sv}</td><td>${p.ga}</td><td class="hot">${svPct(p.sv, p.sa)}</td><td>${fmtTOI(p.toi)}</td></tr>`).join("")}</tbody>
+    </table></div>` : ""}
+    <div class="box-foot">${live ? "Live · " : ""}${opp ? "vs " + esc(opp.displayName || opp.abbreviation) + " · " : ""}Sorted by points. Swipe the table sideways for more. SOG is shots on goal, TOI is ice time, PIM is penalty minutes.</div>`;
+}
+
+function renderSeason(body) {
+  if (!boxSeason) { body.innerHTML = `<span class="dim">Adding up the season…</span>`; return; }
+  const { skaters, goalies, games } = boxSeason;
+  if (!games) { body.innerHTML = `<span class="dim">Season stats appear after the first game.</span>`; return; }
+  const sk = Object.values(skaters).sort((a, b) => b.pts - a.pts || b.g - a.g);
+  const gl = Object.values(goalies).sort((a, b) => b.toi - a.toi);
+  body.innerHTML = `<div class="box-wrap"><table class="box">
+      <thead><tr><th>Skater</th><th>GP</th><th>G</th><th>A</th><th>PTS</th><th>+/-</th><th>SOG</th><th>TOI/GP</th><th>HIT</th><th>BLK</th><th>PIM</th></tr></thead>
+      <tbody>${sk.map(p => `<tr><td>${esc(p.name)}<small>${esc(p.pos)}</small></td><td>${p.gp}</td><td>${p.g}</td><td>${p.a}</td><td class="${p.pts ? "hot" : ""}">${p.pts}</td>${p.pmGames ? pmCell(p.pm) : "<td>–</td>"}<td>${p.sog}</td><td>${fmtTOI(p.toi / p.gp)}</td><td>${p.hit}</td><td>${p.blk}</td><td>${p.pim}</td></tr>`).join("")}</tbody>
+    </table></div>
+    ${gl.length ? `<div class="subhead">Goalies</div><div class="box-wrap"><table class="box">
+      <thead><tr><th>Goalie</th><th>GP</th><th>SV%</th><th>GAA</th><th>SA</th><th>GA</th></tr></thead>
+      <tbody>${gl.map(p => `<tr><td>${esc(p.name)}</td><td>${p.gp}</td><td class="hot">${svPct(p.sv, p.sa)}</td><td>${p.toi ? (p.ga * 60 / p.toi).toFixed(2) : "–"}</td><td>${p.sa}</td><td>${p.ga}</td></tr>`).join("")}</tbody>
+    </table></div>` : ""}
+    <div class="box-foot">Season totals over ${games} game${games === 1 ? "" : "s"}, sorted by points (hockey counts totals, not per-game). TOI/GP is average ice time. GAA is goals allowed per 60 minutes.</div>`;
+}
+
+// Finished games never change, so each one is saved on the phone and only fetched once
+async function buildSeason(doneEvents) {
+  const cache = id => { try { return JSON.parse(localStorage.getItem("njd-box1-" + id)); } catch (e) { return null; } };
+  const save = (id, v) => { try { localStorage.setItem("njd-box1-" + id, JSON.stringify(v)); } catch (e) {} };
+  const games = {}, missing = [];
+  doneEvents.forEach(e => { const c = cache(e.id); if (c) games[e.id] = c; else missing.push(e.id); });
+  for (let i = 0; i < missing.length; i += 6) {
+    const batch = missing.slice(i, i + 6);
+    const res = await Promise.allSettled(batch.map(id => getJSON(`${BASE}/summary?event=${id}`)));
+    res.forEach((r, k) => { const L = r.status === "fulfilled" ? linesFrom(r.value) : null; if (L) { games[batch[k]] = L; save(batch[k], L); } });
+  }
+  const skaters = {}, goalies = {};
+  Object.values(games).forEach(L => {
+    L.skaters.forEach(l => {
+      const p = skaters[l.id] || (skaters[l.id] = { name: l.name, pos: l.pos, gp: 0, g: 0, a: 0, pts: 0, pm: 0, pmGames: 0, sog: 0, toi: 0, pim: 0, hit: 0, blk: 0 });
+      p.gp++; ["g", "a", "pts", "sog", "toi", "pim", "hit", "blk"].forEach(k => p[k] += l[k] || 0);
+      if (l.pm != null) { p.pm += l.pm; p.pmGames++; }
+    });
+    L.goalies.forEach(l => {
+      const p = goalies[l.id] || (goalies[l.id] = { name: l.name, gp: 0, toi: 0, sa: 0, sv: 0, ga: 0 });
+      p.gp++; ["toi", "sa", "sv", "ga"].forEach(k => p[k] += l[k] || 0);
+    });
+  });
+  return { skaters, goalies, games: Object.keys(games).length };
+}
+
+// Leaders: goals, assists, points. Uses ESPN's preview (with photos) when it has them, else the season totals above
+function renderLeaders() {
+  const body = document.getElementById("leadersBody");
+  body.classList.remove("dim");
+  const want = [["goals", "G", "Goals"], ["assists", "A", "Assists"], ["points", "PTS", "Points"]];
+  const block = (leaderSummary?.leaders || []).find(isNJBlock);
+  const cats = block?.leaders || [];
+  const seasonSk = boxSeason ? Object.values(boxSeason.skaters) : [];
+  const cells = want.map(([n, ab, label]) => {
+    const c = cats.find(x => (x.name || "").toLowerCase() === n || (x.abbreviation || "").toUpperCase() === ab);
+    let who, val, img = "";
+    if (c?.leaders?.[0]) {
+      const t = c.leaders[0], a = t.athlete || {};
+      who = a.displayName || shortName(a); val = String(t.displayValue || "").split(/[ ,]/)[0];
+      img = typeof a.headshot === "string" ? a.headshot : (a.headshot?.href || "");
+    } else if (seasonSk.length) {
+      const key = { goals: "g", assists: "a", points: "pts" }[n];
+      const top = seasonSk.slice().sort((x, y) => y[key] - x[key] || y.pts - x.pts)[0];
+      if (!top || !top[key]) return "";
+      who = top.name; val = top[key];
+    } else return "";
+    const ini = String(who).replace(/\./g, "").split(" ").map(w => w[0]).join("").slice(0, 2);
+    return `<div class="leader">${img ? `<img src="${esc(img)}" alt="">` : `<span class="ini">${esc(ini)}</span>`}<span class="val">${esc(val)}</span><span class="cat">${label}</span><span class="who">${esc(who)}</span></div>`;
+  }).filter(Boolean);
+  body.innerHTML = cells.length ? `<div class="leaders">${cells.join("")}</div>` : `<span class="dim">Leaders show up once the season has a game played.</span>`;
+}
+
+["segLast", "segSeason"].forEach(id => document.getElementById(id).addEventListener("click", () => {
+  boxView = id === "segLast" ? "last" : "season";
+  try { localStorage.setItem("njd-boxview", boxView); } catch (e) {}
+  renderBoxCard();
+}));
+
+async function loadExtras(latestEvent, nextEvent, doneEvents) {
+  const sum = id => id ? getJSON(`${BASE}/summary?event=${id}`) : Promise.reject(new Error("no game"));
+  const [rosterR, boxR, nextR] = await Promise.allSettled([getJSON(`${BASE}/teams/${TEAM}/roster`), sum(latestEvent?.id), sum(nextEvent?.id)]);
+  const ok = r => r.status === "fulfilled" ? r.value : null;
+  const safe = (id, fn) => { try { fn(); } catch (e) {
+    const el = document.getElementById(id); el.classList.add("dim"); el.textContent = "Couldn't read this part of ESPN's data. Tap Refresh.";
+  } };
+  safe("injBody", () => {
+    let list = injuriesFromRoster(ok(rosterR));
+    if (!list || !list.length) list = injuriesFromSummary(ok(nextR)) ?? list;
+    renderInjuries(list);
+  });
+  leaderSummary = ok(nextR)?.leaders?.length ? ok(nextR) : null;
+  boxLast = ok(boxR); boxEvent = latestEvent;
+  safe("leadersBody", renderLeaders);
+  safe("boxBody", renderBoxCard);
+  boxSeason = await buildSeason(doneEvents || []).catch(() => ({ skaters: {}, goalies: {}, games: 0 }));
+  safe("leadersBody", renderLeaders);
+  safe("boxBody", renderBoxCard);
+}
+
 async function load() {
   clearTimeout(liveTimer);
   const btn = document.getElementById("refresh");
@@ -359,6 +615,7 @@ async function load() {
     safe("gameBody", () => renderGame(live || last, !!live));
     safe("recordBody", () => renderRecord(teamR.status === "fulfilled" ? teamR.value : null, events));
     safe("nextBody", () => renderNext(next));
+    await loadExtras(live || last, next, done.filter(e => !board.some(b => b.id === e.id && state(b) === "in")));
 
     document.getElementById("stamp").textContent = "Updated " + new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) + (live ? " · refreshing every 30s" : "");
     if (live) liveTimer = setTimeout(load, 30000);
